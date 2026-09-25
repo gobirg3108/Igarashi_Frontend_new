@@ -13,51 +13,107 @@ import {
   TableCell,
   TableContainer,
   TableBody,
+  Switch,
+  FormControlLabel,
+  IconButton,
+  InputAdornment,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Radio,
+  RadioGroup,
 } from "@mui/material";
-import {  useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as XLSX from "xlsx-js-style";
+import ClearIcon from "@mui/icons-material/Clear";
+import { formatDateTimeDMY } from "../utils/dateTime";
 
 export default function Traceability(props) {
   const { triggerPopup } = props;
 
   const [getDmc, setDmc] = useState("");
   const [getTabledataz, setTableDataz] = useState([]);
+  const [barcodeEnabled, setBarcodeEnabled] = useState(true);
+  const [isFetching, setIsFetching] = useState(false);
+  const [isPdfExporting, setIsPdfExporting] = useState(false);
+  const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
+  const [pdfOrientation, setPdfOrientation] = useState("landscape");
+  const [lastFetchedDmc, setLastFetchedDmc] = useState("");
+  const dmcInputRef = useRef(null);
+  const barcodeTimerRef = useRef(null);
+  const isFetchingRef = useRef(false);
 
-  const changeDmcValue = (e) => {
-    setDmc(e.target.value);
-  };
+  useEffect(() => {
+    let isMounted = true;
 
-  const handleSubmit = async () => {
-    if (getDmc === "") {
+    const loadBarcodeSetting = async () => {
+      try {
+        const result = await window.versions.getBarcodeScanSetting();
+        if (isMounted && result?.success) {
+          setBarcodeEnabled(Boolean(result.barcodeEnabled));
+        }
+      } catch (error) {
+        console.error("Failed to load Barcode Scan setting:", error);
+      }
+    };
+
+    loadBarcodeSetting();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (barcodeTimerRef.current) {
+      clearTimeout(barcodeTimerRef.current);
+      barcodeTimerRef.current = null;
+    }
+
+    if (barcodeEnabled) {
+      setTimeout(() => {
+        dmcInputRef.current?.focus();
+        dmcInputRef.current?.select();
+      }, 0);
+    }
+  }, [barcodeEnabled]);
+
+  useEffect(() => {
+    return () => {
+      if (barcodeTimerRef.current) {
+        clearTimeout(barcodeTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleSubmit = async (dmcOverride) => {
+    const dmcCode = (typeof dmcOverride === "string" ? dmcOverride : getDmc)
+      ?.toString()
+      .trim();
+
+    if (!dmcCode) {
       return triggerPopup("Please enter DMC Code", "warning");
     }
+
+    if (isFetchingRef.current) return;
+
     try {
+      isFetchingRef.current = true;
+      setIsFetching(true);
+
       const result = await window.versions.getdmcdata({
-        getDmc: getDmc?.toString(),
+        getDmc: dmcCode,
       });
 
-      const machineOrderMap = {
-        MES_MD_Commutator_Pressing: 1,
-        MES_MD_Winding: 2,
-        MES_MD_Armature_Fusing: 3,
-        MES_MD_EP_Test_1: 4,
-        MES_MD_Collar_Assembly: 5,
-        MED_MD_Auto_Balancing: 6,
-        MES_MD_EP_Test_DMC_Marking: 7,
-      };
-
-      // setTableDataz(result);
-
-      const updatedTableData = result
-        .map((item) => ({
-          ...item,
-          order: machineOrderMap[item?.machinename] || 999,
-        }))
-        .sort((a, b) => a.order - b.order);
+      // Backend returns the rows in the drag-and-drop order saved in DB.
+      // Do not hard-code machine order in the UI.
+      const updatedTableData = Array.isArray(result) ? result : [];
 
       console.log("Updated Table Data:", updatedTableData);
 
       setTableDataz(updatedTableData);
+      setLastFetchedDmc(dmcCode);
 
       if (!updatedTableData?.some((item) => item?.data?.length > 0)) {
         triggerPopup("No traceability data found for this DMC code", "warning");
@@ -65,7 +121,85 @@ export default function Traceability(props) {
     } catch (error) {
       console.error("Error fetching in DMC Data..?", error);
       triggerPopup("Failed to fetch traceability data", "error");
+    } finally {
+      isFetchingRef.current = false;
+      setIsFetching(false);
+
+      if (barcodeEnabled) {
+        setTimeout(() => {
+          dmcInputRef.current?.focus();
+          dmcInputRef.current?.select();
+        }, 0);
+      }
     }
+  };
+
+  const handleBarcodeToggle = async (event) => {
+    const nextValue = event.target.checked;
+    const previousValue = barcodeEnabled;
+
+    if (barcodeTimerRef.current) {
+      clearTimeout(barcodeTimerRef.current);
+      barcodeTimerRef.current = null;
+    }
+
+    setBarcodeEnabled(nextValue);
+
+    try {
+      const result = await window.versions.saveBarcodeScanSetting({
+        barcodeEnabled: nextValue,
+      });
+
+      if (!result?.success) {
+        throw new Error(
+          result?.message || "Unable to save Barcode Scan setting",
+        );
+      }
+
+      triggerPopup(
+        `Barcode Scan ${nextValue ? "Enabled" : "Disabled"}`,
+        "success",
+      );
+    } catch (error) {
+      console.error("Failed to save Barcode Scan setting:", error);
+      setBarcodeEnabled(previousValue);
+      triggerPopup("Failed to save Barcode Scan setting", "error");
+    }
+  };
+
+  const changeDmcValue = (e) => {
+    const value = e.target.value;
+    setDmc(value);
+
+    if (barcodeTimerRef.current) {
+      clearTimeout(barcodeTimerRef.current);
+      barcodeTimerRef.current = null;
+    }
+
+    // Some barcode scanners do not send Enter after the scan.
+    // When Barcode Scan is ON, wait briefly for scanner typing to finish,
+    // then fetch once using the complete scanned value.
+    if (barcodeEnabled && value.trim()) {
+      barcodeTimerRef.current = setTimeout(() => {
+        barcodeTimerRef.current = null;
+        handleSubmit(value);
+      }, 250);
+    }
+  };
+
+  const handleClearDmc = () => {
+    if (barcodeTimerRef.current) {
+      clearTimeout(barcodeTimerRef.current);
+      barcodeTimerRef.current = null;
+    }
+
+    setDmc("");
+    setTableDataz([]);
+    setLastFetchedDmc("");
+
+    setTimeout(() => {
+      dmcInputRef.current?.focus();
+    }, 0);
   };
 
   const handleExportAll = async () => {
@@ -186,9 +320,62 @@ export default function Traceability(props) {
     }
   };
 
+  const handleExportPdf = async (orientation = pdfOrientation) => {
+    const dmcCode = String(lastFetchedDmc || getDmc || "").trim();
+
+    if (!dmcCode || !getTabledataz?.some((t) => t.data?.length > 0)) {
+      return triggerPopup("No Data To Export", "warning");
+    }
+
+    if (isPdfExporting) return;
+
+    try {
+      setIsPdfExporting(true);
+
+      const response = await window.versions.exportTraceabilityPdf({
+        getDmc: dmcCode,
+        orientation,
+      });
+
+      if (response?.success) {
+        setPdfDialogOpen(false);
+        triggerPopup(
+          `Traceability PDF (${orientation === "portrait" ? "Portrait" : "Landscape"}) Saved Successfully`,
+          "success",
+        );
+      } else {
+        triggerPopup(
+          response?.message || "Failed To Save Traceability PDF",
+          "error",
+        );
+      }
+    } catch (error) {
+      console.error("Traceability PDF Export Error:", error);
+      triggerPopup("Traceability PDF Export Failed", "error");
+    } finally {
+      setIsPdfExporting(false);
+    }
+  };
+
   return (
     <Card sx={{ p: 3, mx: "auto" }}>
-      <Grid container spacing={2} columnSpacing={2} alignItems="flex-end">
+      <Grid
+        component="form"
+        onSubmit={(e) => {
+          e.preventDefault();
+
+          if (barcodeTimerRef.current) {
+            clearTimeout(barcodeTimerRef.current);
+            barcodeTimerRef.current = null;
+          }
+
+          handleSubmit();
+        }}
+        container
+        spacing={2}
+        columnSpacing={2}
+        alignItems="flex-end"
+      >
         <Grid item xs={12} sm={3} md={3} mb={1}>
           <FormControl fullWidth>
             <Typography mb={1}>DMC Code</Typography>
@@ -197,8 +384,36 @@ export default function Traceability(props) {
               type="text"
               size="small"
               value={getDmc}
+              inputRef={dmcInputRef}
+              autoFocus
               onChange={(e) => {
                 changeDmcValue(e);
+              }}
+              onKeyDown={(e) => {
+                if (barcodeEnabled && e.key === "Enter") {
+                  e.preventDefault();
+
+                  if (barcodeTimerRef.current) {
+                    clearTimeout(barcodeTimerRef.current);
+                    barcodeTimerRef.current = null;
+                  }
+
+                  handleSubmit(e.currentTarget.value);
+                }
+              }}
+              InputProps={{
+                endAdornment: getDmc ? (
+                  <InputAdornment position="end">
+                    <IconButton
+                      edge="end"
+                      size="small"
+                      aria-label="Clear DMC Code"
+                      onClick={handleClearDmc}
+                    >
+                      <ClearIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ) : null,
               }}
             />
           </FormControl>
@@ -214,14 +429,23 @@ export default function Traceability(props) {
             }}
           >
             <Button
+              type="submit"
               size="medium"
               variant="contained"
-              onClick={() => {
-                handleSubmit();
-              }}
+              disabled={isFetching}
             >
-              Submit
+              {isFetching ? "Fetching..." : "Submit"}
             </Button>
+
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={barcodeEnabled}
+                  onChange={handleBarcodeToggle}
+                />
+              }
+              label="Barcode Scan"
+            />
           </Box>
         </Grid>
       </Grid>
@@ -244,6 +468,18 @@ export default function Traceability(props) {
             }}
           >
             Open Today Folder
+          </Button>
+
+          <Button
+            variant="contained"
+            color="error"
+            sx={{ mr: 2 }}
+            onClick={() => setPdfDialogOpen(true)}
+            disabled={
+              isPdfExporting || !getTabledataz?.some((t) => t.data?.length > 0)
+            }
+          >
+            {isPdfExporting ? "Exporting PDF..." : "Export PDF"}
           </Button>
 
           <Button
@@ -316,8 +552,10 @@ export default function Traceability(props) {
                             const value = row[header];
                             let displayValue = "";
 
-                            if (value instanceof Date) {
-                              displayValue = value.toLocaleString();
+                            if (String(header).toLowerCase() === "date_time") {
+                              displayValue = formatDateTimeDMY(value);
+                            } else if (value instanceof Date) {
+                              displayValue = formatDateTimeDMY(value);
                             } else if (typeof value === "string") {
                               displayValue = value.trim();
                             } else if (value === null || value === undefined) {
@@ -344,6 +582,54 @@ export default function Traceability(props) {
             );
           })}
       </Box>
+
+      <Dialog
+        open={pdfDialogOpen}
+        onClose={() => {
+          if (!isPdfExporting) setPdfDialogOpen(false);
+        }}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Export Traceability PDF</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ mb: 1.5, color: "text.secondary" }}>
+            Select PDF orientation
+          </Typography>
+
+          <RadioGroup
+            value={pdfOrientation}
+            onChange={(event) => setPdfOrientation(event.target.value)}
+          >
+            <FormControlLabel
+              value="landscape"
+              control={<Radio />}
+              label="Landscape - compact table view"
+            />
+            <FormControlLabel
+              value="portrait"
+              control={<Radio />}
+              label="Portrait - parameter / value view"
+            />
+          </RadioGroup>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            onClick={() => setPdfDialogOpen(false)}
+            disabled={isPdfExporting}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => handleExportPdf(pdfOrientation)}
+            disabled={isPdfExporting}
+          >
+            {isPdfExporting ? "Exporting..." : "Export"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Card>
   );
 }

@@ -48,7 +48,7 @@ function ExcelTemplate({ triggerPopup }) {
         }
       }
     }, 500),
-    []
+    [],
   );
 
   const handleempty = useCallback(() => {
@@ -213,56 +213,60 @@ function ExcelTemplate({ triggerPopup }) {
   const handleHeaderChange = useCallback((oldHeader, newHeaderValue) => {
     setcolumnsdynamic((prev) =>
       prev.map((c) =>
-        c.oldHeader === oldHeader ? { ...c, newHeader: newHeaderValue } : c
-      )
+        c.oldHeader === oldHeader ? { ...c, newHeader: newHeaderValue } : c,
+      ),
     );
   }, []);
 
   const handleHeaderBgChange = useCallback((oldHeader, newColor) => {
     setcolumnsdynamic((prev) =>
       prev.map((c) =>
-        c.oldHeader === oldHeader ? { ...c, header_bg: newColor } : c
-      )
+        c.oldHeader === oldHeader ? { ...c, header_bg: newColor } : c,
+      ),
     );
   }, []);
 
   const handleHeaderTextChange = useCallback((oldHeader, newColor) => {
     setcolumnsdynamic((prev) =>
       prev.map((c) =>
-        c.oldHeader === oldHeader ? { ...c, header_text: newColor } : c
-      )
+        c.oldHeader === oldHeader ? { ...c, header_text: newColor } : c,
+      ),
     );
   }, []);
 
   const handleContentBgChange = useCallback((oldHeader, newColor) => {
     setcolumnsdynamic((prev) =>
       prev.map((c) =>
-        c.oldHeader === oldHeader ? { ...c, content_bg: newColor } : c
-      )
+        c.oldHeader === oldHeader ? { ...c, content_bg: newColor } : c,
+      ),
     );
   }, []);
 
   const handleBodyTextChange = useCallback((oldHeader, newColor) => {
     setcolumnsdynamic((prev) =>
       prev.map((c) =>
-        c.oldHeader === oldHeader ? { ...c, content_text: newColor } : c
-      )
+        c.oldHeader === oldHeader ? { ...c, content_text: newColor } : c,
+      ),
     );
   }, []);
 
   const handleRoundofToggle = (oldHeader, checked) => {
     setcolumnsdynamic((prev) =>
       prev.map((col) =>
-        col.oldHeader === oldHeader ? { ...col, roundof: checked ? 1 : 0 } : col
-      )
+        col.oldHeader === oldHeader
+          ? { ...col, roundof: checked ? 1 : 0 }
+          : col,
+      ),
     );
   };
 
   const handleToggleVisible = (oldHeader, checked) => {
     setcolumnsdynamic((prev) =>
       prev.map((col) =>
-        col.oldHeader === oldHeader ? { ...col, display: checked ? 1 : 0 } : col
-      )
+        col.oldHeader === oldHeader
+          ? { ...col, display: checked ? 1 : 0 }
+          : col,
+      ),
     );
   };
 
@@ -348,7 +352,7 @@ function ExcelTemplate({ triggerPopup }) {
       if (res.length === 0) {
         return triggerPopup(
           "No templates are available for this machine.",
-          "error"
+          "error",
         );
       }
     } catch (error) {
@@ -362,8 +366,8 @@ function ExcelTemplate({ triggerPopup }) {
       prev.map((col) =>
         col.oldHeader === oldHeader
           ? { ...col, decimalpoint: Number(value) || 3 }
-          : col
-      )
+          : col,
+      ),
     );
   };
 
@@ -450,7 +454,7 @@ function ExcelTemplate({ triggerPopup }) {
     }
 
     const isConfirm = window.confirm(
-      `Are you sure you want to delete the template "${getSelTemplate}"?`
+      `Are you sure you want to delete the template "${getSelTemplate}"?`,
     );
 
     if (!isConfirm) {
@@ -481,7 +485,14 @@ function ExcelTemplate({ triggerPopup }) {
   };
 
   return (
-    <Card sx={{ p: 3, mx: "auto" }}>
+    <Card
+      component="form"
+      onSubmit={(e) => {
+        e.preventDefault();
+        handleSubmit();
+      }}
+      sx={{ p: 3, mx: "auto" }}
+    >
       <Grid container spacing={2} columnSpacing={2} alignItems="flex-end">
         {/* Machine Selection */}
 
@@ -532,10 +543,16 @@ function ExcelTemplate({ triggerPopup }) {
               columnGap: "15px",
             }}
           >
-            <Button size="medium" variant="contained" onClick={editTemplate}>
+            <Button
+              type="button"
+              size="medium"
+              variant="contained"
+              onClick={editTemplate}
+            >
               Edit Template
             </Button>
             <Button
+              type="button"
               size="medium"
               variant="contained"
               onClick={() => {
@@ -582,6 +599,7 @@ function ExcelTemplate({ triggerPopup }) {
         getWindowType !== "addData" ? (
           <Grid item xs={12} sm={5} md={5}>
             <Button
+              type="button"
               variant="contained"
               color="error"
               startIcon={<DeleteForeverIcon />}
@@ -1049,7 +1067,7 @@ function ExcelTemplate({ triggerPopup }) {
             justifyContent={"end"}
             alignContent={"end"}
           >
-            <Button variant="contained" onClick={handleSubmit}>
+            <Button type="submit" variant="contained">
               Save
             </Button>
           </Grid>

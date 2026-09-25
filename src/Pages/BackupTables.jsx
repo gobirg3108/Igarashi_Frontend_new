@@ -22,6 +22,7 @@ import { MaterialReactTable } from "material-react-table";
 import EditIcon from "@mui/icons-material/Edit";
 import CloseIcon from "@mui/icons-material/Close";
 import { debounce } from "lodash";
+import { formatDateTimeDMY } from "../utils/dateTime";
 
 const DEFAULT_BACKUP_SETTINGS = {
   enabled: true,
@@ -38,19 +39,7 @@ const DEFAULT_BACKUP_SETTINGS = {
   nextBackup: null,
 };
 
-const formatDateTime = (value) => {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-
-  return date.toLocaleString("en-IN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
+const formatDateTime = (value) => formatDateTimeDMY(value, false);
 
 function BackupTables({ triggerPopup }) {
   const [getTableData, setTableData] = useState([]);
@@ -93,15 +82,19 @@ function BackupTables({ triggerPopup }) {
         (backupTableRes || []).map((item) => [item.TABLE_NAME, item]),
       );
 
-      const merged = (tableRes?.mergedArray || []).map((table) => ({
-        ...table,
-        ...(backupMap.get(table.TABLE_NAME) || {
-          cleanupEnabled: false,
-          dateColumn: "",
-          dateColumns: [],
-          canCleanup: false,
-        }),
-      }));
+      const merged = (tableRes?.mergedArray || []).map((table) => {
+        const saved = backupMap.get(table.TABLE_NAME);
+
+        return {
+          ...table,
+          ...(saved || {
+            cleanupEnabled: false,
+            dateColumn: "",
+            dateColumns: [],
+            canCleanup: false,
+          }),
+        };
+      });
 
       setTableData(merged);
     } catch (error) {

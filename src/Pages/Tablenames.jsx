@@ -1,10 +1,4 @@
-import {
-  React,
-  useEffect,
-  useState,
-  useMemo,
-  useCallback,
-} from "react";
+import { React, useEffect, useState, useMemo, useCallback } from "react";
 import {
   Grid,
   Typography,
@@ -24,6 +18,7 @@ import {
 import { MaterialReactTable } from "material-react-table";
 import EditIcon from "@mui/icons-material/Edit";
 import CloseIcon from "@mui/icons-material/Close";
+import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import Switch from "@mui/material/Switch";
 import { debounce } from "lodash";
 
@@ -34,7 +29,9 @@ function Tablenames({ triggerPopup }) {
   const [getNewName, setNewName] = useState("");
   const [getType, setType] = useState("");
   const [getExeUser, setExeUser] = useState("");
- 
+  const [draggedMachineName, setDraggedMachineName] = useState(null);
+  const [savingTraceabilityOrder, setSavingTraceabilityOrder] = useState(false);
+
   const debouncedCheck = useCallback(
     debounce(async (value) => {
       if (value.trim() !== "") {
@@ -52,10 +49,7 @@ function Tablenames({ triggerPopup }) {
 
   const handleToggleVisibility = async (rowData) => {
     if (rowData?.exportname === "") {
-      return triggerPopup(
-        "Kindly assign a name to this machine.",
-        "warning",
-      );
+      return triggerPopup("Kindly assign a name to this machine.", "warning");
     }
 
     const newStatus = rowData.status === 1 ? 0 : 1;
@@ -68,13 +62,9 @@ function Tablenames({ triggerPopup }) {
       });
 
       if (res?.status === 0 || res?.status === 1) {
-        setTableData((prev) =>
-          prev.map((item) =>
-            item.TABLE_NAME === rowData.TABLE_NAME
-              ? { ...item, status: newStatus }
-              : item,
-          ),
-        );
+        // Reload so the UI also receives the DB-assigned traceability order
+        // (re-enabled machines are appended to the end).
+        getTables();
 
         return triggerPopup(
           newStatus === 1
@@ -90,7 +80,6 @@ function Tablenames({ triggerPopup }) {
       triggerPopup("Failed to update visibility", "error");
     }
   };
-
 
   const columns = useMemo(
     () => [
@@ -116,6 +105,89 @@ function Tablenames({ triggerPopup }) {
     [],
   );
 
+  const traceabilityTables = useMemo(() => {
+    return [...getTableData]
+      .filter(
+        (item) =>
+          item.status === 1 &&
+          item.has_dmc_data === true &&
+          String(item.exportname || "").trim(),
+      )
+      .sort((a, b) => {
+        const aOrder = Number.isFinite(Number(a.traceability_order))
+          ? Number(a.traceability_order)
+          : Number.MAX_SAFE_INTEGER;
+        const bOrder = Number.isFinite(Number(b.traceability_order))
+          ? Number(b.traceability_order)
+          : Number.MAX_SAFE_INTEGER;
+
+        if (aOrder !== bOrder) return aOrder - bOrder;
+        return String(a.exportname || a.TABLE_NAME).localeCompare(
+          String(b.exportname || b.TABLE_NAME),
+        );
+      });
+  }, [getTableData]);
+
+  const handleTraceabilityDrop = async (targetMachineName, sourceOverride) => {
+    const sourceMachineName = sourceOverride || draggedMachineName;
+    setDraggedMachineName(null);
+
+    if (
+      !sourceMachineName ||
+      !targetMachineName ||
+      sourceMachineName === targetMachineName ||
+      savingTraceabilityOrder
+    ) {
+      return;
+    }
+
+    const previousData = getTableData;
+    const ordered = [...traceabilityTables];
+    const sourceIndex = ordered.findIndex(
+      (item) => item.TABLE_NAME === sourceMachineName,
+    );
+    const targetIndex = ordered.findIndex(
+      (item) => item.TABLE_NAME === targetMachineName,
+    );
+
+    if (sourceIndex < 0 || targetIndex < 0) return;
+
+    const [movedItem] = ordered.splice(sourceIndex, 1);
+    ordered.splice(targetIndex, 0, movedItem);
+
+    const orderMap = new Map(
+      ordered.map((item, index) => [item.TABLE_NAME, index + 1]),
+    );
+
+    setTableData((prev) =>
+      prev.map((item) =>
+        orderMap.has(item.TABLE_NAME)
+          ? { ...item, traceability_order: orderMap.get(item.TABLE_NAME) }
+          : item,
+      ),
+    );
+
+    try {
+      setSavingTraceabilityOrder(true);
+      const response = await window.versions.saveTraceabilityOrder({
+        machineNames: ordered.map((item) => item.TABLE_NAME),
+      });
+
+      if (!response?.success) {
+        throw new Error(
+          response?.message || "Unable to save traceability order",
+        );
+      }
+
+      triggerPopup("Traceability order saved", "success");
+    } catch (error) {
+      console.error("Failed to save traceability order:", error);
+      setTableData(previousData);
+      triggerPopup("Failed to save traceability order", "error");
+    } finally {
+      setSavingTraceabilityOrder(false);
+    }
+  };
 
   const getTables = () => {
     window.versions
@@ -135,7 +207,6 @@ function Tablenames({ triggerPopup }) {
     setType(row?.original?.exportname !== "" ? "Update" : "Insert");
     setOpenAddModal(true);
   };
-
 
   const hanleEditData = async () => {
     if (getExeUser === "Exists") {
@@ -186,6 +257,101 @@ function Tablenames({ triggerPopup }) {
         </Grid>
       </Grid>
        */}
+        <Box mt={1} mb={4}>
+          <Typography variant="h6" gutterBottom>
+            Traceability Display Order
+          </Typography>
+          <Typography variant="body2" color="text.secondary" mb={2}>
+            Drag and drop the active DMC machines to change the order shown on
+            the Traceability page. The order is saved automatically in the
+            database.
+          </Typography>
+
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                md: "repeat(2, minmax(0, 1fr))",
+              },
+              gap: 1,
+              maxWidth: 900,
+            }}
+          >
+            {traceabilityTables.map((item, index) => (
+              <Box
+                key={item.TABLE_NAME}
+                draggable={!savingTraceabilityOrder}
+                onDragStart={(event) => {
+                  setDraggedMachineName(item.TABLE_NAME);
+                  event.dataTransfer.effectAllowed = "move";
+                  event.dataTransfer.setData("text/plain", item.TABLE_NAME);
+                }}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  const source =
+                    draggedMachineName ||
+                    event.dataTransfer.getData("text/plain");
+                  handleTraceabilityDrop(item.TABLE_NAME, source);
+                }}
+                onDragEnd={() => setDraggedMachineName(null)}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1.25,
+                  px: 1.5,
+                  py: 1.25,
+                  border: "1px solid",
+                  borderColor:
+                    draggedMachineName === item.TABLE_NAME
+                      ? "primary.main"
+                      : "divider",
+                  borderRadius: 1,
+                  backgroundColor:
+                    draggedMachineName === item.TABLE_NAME
+                      ? "action.selected"
+                      : "background.paper",
+                  cursor: savingTraceabilityOrder ? "wait" : "grab",
+                  userSelect: "none",
+                }}
+              >
+                <DragIndicatorIcon color="action" />
+                <Typography
+                  sx={{
+                    minWidth: 28,
+                    fontWeight: 700,
+                    color: "text.secondary",
+                  }}
+                >
+                  {index + 1}.
+                </Typography>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography sx={{ fontWeight: 600 }}>
+                    {item.exportname}
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ wordBreak: "break-all" }}
+                  >
+                    {item.TABLE_NAME}
+                  </Typography>
+                </Box>
+              </Box>
+            ))}
+          </Box>
+
+          {!traceabilityTables.length && (
+            <Typography variant="body2" color="text.secondary" mt={1}>
+              No active DMC machines are available for Traceability.
+            </Typography>
+          )}
+        </Box>
+
         <Box mt={3}>
           <Typography variant="h6" gutterBottom mb={2}>
             All Tables
@@ -218,7 +384,6 @@ function Tablenames({ triggerPopup }) {
             positionActionsColumn="last"
           />
         </Box>
-
       </Card>
 
       <Dialog open={openAddModal} onClose={handleCloseAdd}>

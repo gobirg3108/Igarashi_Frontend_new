@@ -12,6 +12,7 @@ import {
   Typography,
   Button,
   IconButton,
+  InputAdornment,
   Collapse,
   Select,
 } from "@mui/material";
@@ -20,6 +21,8 @@ import { MaterialReactTable } from "material-react-table";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CloseIcon from "@mui/icons-material/Close";
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import OutlinedInput from "@mui/material/OutlinedInput";
 import MenuItem from "@mui/material/MenuItem";
 import ListItemText from "@mui/material/ListItemText";
@@ -77,6 +80,7 @@ export default function Settings({ triggerPopup }) {
   const [getData, setData] = useState([]);
   const [getBtnType, setBtnType] = useState("");
   const [getExeUser, setExeUser] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async () => {
     if (getExeUser === "Exists") {
@@ -122,9 +126,13 @@ export default function Settings({ triggerPopup }) {
     }
   };
 
-  const handleOpenAdd = () => setOpenAddModal(true);
+  const handleOpenAdd = () => {
+    setShowPassword(false);
+    setOpenAddModal(true);
+  };
   const handleCloseAdd = () => {
     setOpenAddModal(false);
+    setShowPassword(false);
     setExeUser("");
   };
 
@@ -210,12 +218,13 @@ export default function Settings({ triggerPopup }) {
   );
 
   const handleEdit = (row) => {
+    setShowPassword(false);
     setOpenAddModal(true);
 
     setUser({
       fullname: row?.original?.fullname || "",
       username: row?.original?.username || "",
-      password: "",
+      password: row?.original?.password || "",
       id: row?.original?.id,
     });
 
@@ -558,128 +567,158 @@ export default function Settings({ triggerPopup }) {
       </Card>
 
       <Dialog open={openAddModal} onClose={handleCloseAdd}>
-        <DialogTitle sx={{ m: 0, p: 2 }}>
-          Add User
-          <IconButton
-            aria-label="close"
-            onClick={handleCloseAdd}
-            sx={{
-              position: "absolute",
-              right: 8,
-              top: 8,
-            }}
-          >
-            <CloseIcon />
-          </IconButton>
-        </DialogTitle>
-
-        <DialogContent
-          sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (getBtnType === "save") {
+              handleSubmit();
+            } else {
+              handleUpdate();
+            }
+          }}
         >
-          <Grid container>
-            <Grid item sm={4}>
-              <Typography>Full Name</Typography>
+          <DialogTitle sx={{ m: 0, p: 2 }}>
+            Add User
+            <IconButton
+              type="button"
+              aria-label="close"
+              onClick={handleCloseAdd}
+              sx={{
+                position: "absolute",
+                right: 8,
+                top: 8,
+              }}
+            >
+              <CloseIcon />
+            </IconButton>
+          </DialogTitle>
+
+          <DialogContent
+            sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}
+          >
+            <Grid container>
+              <Grid item sm={4}>
+                <Typography>Full Name</Typography>
+              </Grid>
+
+              <Grid item sm={8}>
+                <TextField
+                  value={getUser.fullname}
+                  onChange={(e) =>
+                    setUser({ ...getUser, fullname: e.target.value })
+                  }
+                  fullWidth
+                />
+              </Grid>
+
+              <Grid item sm={4} mt={2}>
+                <Typography>User Name</Typography>
+              </Grid>
+
+              <Grid item sm={8} mt={2}>
+                <TextField
+                  value={getUser.username}
+                  onChange={(e) => {
+                    const value = e.target.value;
+
+                    setUser({
+                      ...getUser,
+                      username: value,
+                    });
+
+                    debouncedCheck(
+                      value,
+                      getBtnType === "edit" ? getUser?.id : 0,
+                    );
+                  }}
+                  fullWidth
+                />
+
+                <Typography sx={{ color: "red" }}>
+                  {getExeUser === "Exists"
+                    ? "This username Already Assigned"
+                    : ""}
+                </Typography>
+              </Grid>
+
+              <Grid item sm={4} mt={2}>
+                <Typography>Password</Typography>
+              </Grid>
+
+              <Grid item sm={8} mt={2}>
+                <TextField
+                  type={showPassword ? "text" : "password"}
+                  value={getUser.password}
+                  onChange={(e) =>
+                    setUser({ ...getUser, password: e.target.value })
+                  }
+                  helperText={
+                    getBtnType === "edit"
+                      ? "Existing password loaded. Edit it only if you want to change it."
+                      : ""
+                  }
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          type="button"
+                          aria-label={
+                            showPassword ? "Hide password" : "Show password"
+                          }
+                          onClick={() => setShowPassword((prev) => !prev)}
+                          edge="end"
+                        >
+                          {showPassword ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                  fullWidth
+                />
+              </Grid>
+
+              <Grid sm={4} mt={2}>
+                <Typography>Pages</Typography>
+              </Grid>
+
+              <Grid item sm={8} mt={2}>
+                <FormControl fullWidth>
+                  <Select
+                    multiple
+                    value={getPage}
+                    onChange={handleChange}
+                    input={<OutlinedInput />}
+                    renderValue={(selected) => selected.join(", ")}
+                    MenuProps={MenuProps}
+                  >
+                    {names.map((name) => (
+                      <MenuItem key={name} value={name}>
+                        <Checkbox checked={getPage.includes(name)} />
+                        <ListItemText primary={name} />
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
             </Grid>
+          </DialogContent>
 
-            <Grid item sm={8}>
-              <TextField
-                value={getUser.fullname}
-                onChange={(e) =>
-                  setUser({ ...getUser, fullname: e.target.value })
-                }
-                fullWidth
-              />
-            </Grid>
-
-            <Grid item sm={4} mt={2}>
-              <Typography>User Name</Typography>
-            </Grid>
-
-            <Grid item sm={8} mt={2}>
-              <TextField
-                value={getUser.username}
-                onChange={(e) => {
-                  const value = e.target.value;
-
-                  setUser({
-                    ...getUser,
-                    username: value,
-                  });
-
-                  debouncedCheck(
-                    value,
-                    getBtnType === "edit" ? getUser?.id : 0,
-                  );
-                }}
-                fullWidth
-              />
-
-              <Typography sx={{ color: "red" }}>
-                {getExeUser === "Exists"
-                  ? "This username Already Assigned"
-                  : ""}
-              </Typography>
-            </Grid>
-
-            <Grid item sm={4} mt={2}>
-              <Typography>Password</Typography>
-            </Grid>
-
-            <Grid item sm={8} mt={2}>
-              <TextField
-                type="password"
-                value={getUser.password}
-                onChange={(e) =>
-                  setUser({ ...getUser, password: e.target.value })
-                }
-                helperText={
-                  getBtnType === "edit"
-                    ? "Leave blank to keep the existing password"
-                    : ""
-                }
-                fullWidth
-              />
-            </Grid>
-
-            <Grid sm={4} mt={2}>
-              <Typography>Pages</Typography>
-            </Grid>
-
-            <Grid item sm={8} mt={2}>
-              <FormControl fullWidth>
-                <Select
-                  multiple
-                  value={getPage}
-                  onChange={handleChange}
-                  input={<OutlinedInput />}
-                  renderValue={(selected) => selected.join(", ")}
-                  MenuProps={MenuProps}
-                >
-                  {names.map((name) => (
-                    <MenuItem key={name} value={name}>
-                      <Checkbox checked={getPage.includes(name)} />
-                      <ListItemText primary={name} />
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-          </Grid>
-        </DialogContent>
-
-        <DialogActions>
-          <Button onClick={handleCloseAdd}>Cancel</Button>
-
-          {getBtnType === "save" ? (
-            <Button variant="contained" onClick={handleSubmit}>
-              Save
+          <DialogActions>
+            <Button type="button" onClick={handleCloseAdd}>
+              Cancel
             </Button>
-          ) : (
-            <Button variant="contained" onClick={handleUpdate}>
-              Edit
-            </Button>
-          )}
-        </DialogActions>
+
+            {getBtnType === "save" ? (
+              <Button type="submit" variant="contained">
+                Save
+              </Button>
+            ) : (
+              <Button type="submit" variant="contained">
+                Edit
+              </Button>
+            )}
+          </DialogActions>
+        </form>
       </Dialog>
     </>
   );

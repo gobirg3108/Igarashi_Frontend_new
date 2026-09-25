@@ -13,6 +13,11 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { MaterialReactTable } from "material-react-table";
+import {
+  formatDateDMY,
+  formatTime12,
+  formatDateInputValue,
+} from "../utils/dateTime";
 
 let first = false;
 let timeslap = null;
@@ -57,8 +62,8 @@ export default function Home(props) {
       setFromDate(date?.[0]);
       setToDate(date?.[1]);
     } else {
-      setFromDate(new Date()?.toISOString()?.split("T")?.[0]);
-      setToDate(new Date()?.toISOString()?.split("T")?.[0]);
+      setFromDate(formatDateInputValue());
+      setToDate(formatDateInputValue());
     }
     if (date?.[2]) {
       // setMachine(date?.[2]);
@@ -72,21 +77,14 @@ export default function Home(props) {
               new_columns.push({
                 header: element?.COLUMN_NAME,
                 accessorFn: (row) =>
-                  row.Date_Time
-                    ? new Date(row.Date_Time)?.toISOString()?.split("T")?.[0]
-                    : "",
+                  row.Date_Time ? formatDateDMY(row.Date_Time) : "",
               });
 
               new_columns.push({
                 accessorKey: "Time",
                 header: "Time",
                 accessorFn: (row) =>
-                  row.Date_Time
-                    ? new Date(row.Date_Time)
-                        ?.toISOString()
-                        ?.split("T")?.[1]
-                        ?.split(".")?.[0]
-                    : "",
+                  row.Date_Time ? formatTime12(row.Date_Time) : "",
               });
             } else {
               new_columns.push(
@@ -166,20 +164,13 @@ export default function Home(props) {
                 new_columns.push({
                   header: "Date",
                   accessorFn: (row) =>
-                    row.Date_Time
-                      ? new Date(row.Date_Time).toISOString().split("T")[0]
-                      : "",
+                    row.Date_Time ? formatDateDMY(row.Date_Time) : "",
                 });
 
                 new_columns.push({
                   header: "Time",
                   accessorFn: (row) =>
-                    row.Date_Time
-                      ? new Date(row.Date_Time)
-                          .toISOString()
-                          .split("T")[1]
-                          ?.split(".")[0]
-                      : "",
+                    row.Date_Time ? formatTime12(row.Date_Time) : "",
                 });
               } else {
                 // Float formatting
@@ -251,9 +242,7 @@ export default function Home(props) {
             id: t.oldHeader,
             order_no: t.order_no,
             accessorFn: (row) =>
-              row.Date_Time
-                ? new Date(row.Date_Time).toISOString().split("T")[0]
-                : "",
+              row.Date_Time ? formatDateDMY(row.Date_Time) : "",
           };
         }
 
@@ -264,12 +253,7 @@ export default function Home(props) {
             id: t.oldHeader,
             order_no: t.order_no,
             accessorFn: (row) =>
-              row.Date_Time
-                ? new Date(row.Date_Time)
-                    .toISOString()
-                    .split("T")[1]
-                    .split(".")[0]
-                : "",
+              row.Date_Time ? formatTime12(row.Date_Time) : "",
           };
         } else {
           if (structureCol?.DATA_TYPE === "float") {
@@ -573,7 +557,17 @@ export default function Home(props) {
       </Typography>
 
       {/* Date & Machine Selection */}
-      <Grid container spacing={2} columnSpacing={8} alignItems="center">
+      <Grid
+        component="form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          handlesubmit(e, getSelTemplate);
+        }}
+        container
+        spacing={2}
+        columnSpacing={8}
+        alignItems="center"
+      >
         {/* From Date */}
         <Grid item xs={12} sm={6} md={4}>
           <Typography>From Date</Typography>
@@ -743,18 +737,16 @@ export default function Home(props) {
           justifyContent="flex-end"
         >
           {filePath?.file && (
-            <Button variant="contained" onClick={handleopenfile}>
+            <Button type="button" variant="contained" onClick={handleopenfile}>
               Show File
             </Button>
           )}
           {filePath?.error && filePath?.error}
-          <Button
-            variant="contained"
-            onClick={(e) => handlesubmit(e, getSelTemplate)}
-          >
+          <Button type="submit" variant="contained" disabled={loading}>
             Submit
           </Button>
           <Button
+            type="button"
             variant="contained"
             color="success"
             onClick={(e) => exportexcel(e, getSelTemplate)}
