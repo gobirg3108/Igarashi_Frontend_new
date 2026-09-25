@@ -29,17 +29,60 @@ import * as XLSX from "xlsx-js-style";
 import ClearIcon from "@mui/icons-material/Clear";
 import { formatDateTimeDMY } from "../utils/dateTime";
 
+const TRACEABILITY_SESSION_KEY = "igarashi_traceability_session";
+
+const loadTraceabilitySession = () => {
+  try {
+    const saved = sessionStorage.getItem(TRACEABILITY_SESSION_KEY);
+    if (!saved) return null;
+
+    const parsed = JSON.parse(saved);
+    return {
+      dmc: typeof parsed?.dmc === "string" ? parsed.dmc : "",
+      tableData: Array.isArray(parsed?.tableData) ? parsed.tableData : [],
+      lastFetchedDmc:
+        typeof parsed?.lastFetchedDmc === "string" ? parsed.lastFetchedDmc : "",
+    };
+  } catch (error) {
+    console.error("Failed to restore Traceability session:", error);
+    return null;
+  }
+};
+
+const saveTraceabilitySession = (data) => {
+  try {
+    sessionStorage.setItem(TRACEABILITY_SESSION_KEY, JSON.stringify(data));
+  } catch (error) {
+    // Do not break Traceability if browser session storage is unavailable/full.
+    console.error("Failed to save Traceability session:", error);
+  }
+};
+
+const clearTraceabilitySession = () => {
+  try {
+    sessionStorage.removeItem(TRACEABILITY_SESSION_KEY);
+  } catch (error) {
+    console.error("Failed to clear Traceability session:", error);
+  }
+};
+
 export default function Traceability(props) {
   const { triggerPopup } = props;
 
-  const [getDmc, setDmc] = useState("");
-  const [getTabledataz, setTableDataz] = useState([]);
+  const [restoredSession] = useState(() => loadTraceabilitySession());
+
+  const [getDmc, setDmc] = useState(restoredSession?.dmc || "");
+  const [getTabledataz, setTableDataz] = useState(
+    restoredSession?.tableData || [],
+  );
   const [barcodeEnabled, setBarcodeEnabled] = useState(true);
   const [isFetching, setIsFetching] = useState(false);
   const [isPdfExporting, setIsPdfExporting] = useState(false);
   const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
   const [pdfOrientation, setPdfOrientation] = useState("landscape");
-  const [lastFetchedDmc, setLastFetchedDmc] = useState("");
+  const [lastFetchedDmc, setLastFetchedDmc] = useState(
+    restoredSession?.lastFetchedDmc || "",
+  );
   const dmcInputRef = useRef(null);
   const barcodeTimerRef = useRef(null);
   const isFetchingRef = useRef(false);
@@ -112,8 +155,15 @@ export default function Traceability(props) {
 
       console.log("Updated Table Data:", updatedTableData);
 
+      setDmc(dmcCode);
       setTableDataz(updatedTableData);
       setLastFetchedDmc(dmcCode);
+
+      saveTraceabilitySession({
+        dmc: dmcCode,
+        tableData: updatedTableData,
+        lastFetchedDmc: dmcCode,
+      });
 
       if (!updatedTableData?.some((item) => item?.data?.length > 0)) {
         triggerPopup("No traceability data found for this DMC code", "warning");
@@ -196,6 +246,7 @@ export default function Traceability(props) {
     setDmc("");
     setTableDataz([]);
     setLastFetchedDmc("");
+    clearTraceabilitySession();
 
     setTimeout(() => {
       dmcInputRef.current?.focus();

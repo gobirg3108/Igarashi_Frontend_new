@@ -31,11 +31,11 @@ const Popup = ({ message, type = "info", duration, onClose }) => {
           severity={type}
           onClose={onClose}
           sx={{
-            width: 450, // Fixed width
+            width: 450,
             height: 60,
             display: "flex",
             justifyContent: "center",
-            textAlign: "center", // Ensure text is centered
+            textAlign: "center",
           }}
         >
           {message}
