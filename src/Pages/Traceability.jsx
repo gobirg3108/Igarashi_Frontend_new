@@ -41,7 +41,9 @@ const loadTraceabilitySession = () => {
       dmc: typeof parsed?.dmc === "string" ? parsed.dmc : "",
       tableData: Array.isArray(parsed?.tableData) ? parsed.tableData : [],
       lastFetchedDmc:
-        typeof parsed?.lastFetchedDmc === "string" ? parsed.lastFetchedDmc : "",
+        typeof parsed?.lastFetchedDmc === "string"
+          ? parsed.lastFetchedDmc
+          : "",
     };
   } catch (error) {
     console.error("Failed to restore Traceability session:", error);
@@ -131,7 +133,9 @@ export default function Traceability(props) {
   }, []);
 
   const handleSubmit = async (dmcOverride) => {
-    const dmcCode = (typeof dmcOverride === "string" ? dmcOverride : getDmc)
+    const dmcCode = (
+      typeof dmcOverride === "string" ? dmcOverride : getDmc
+    )
       ?.toString()
       .trim();
 
@@ -201,9 +205,7 @@ export default function Traceability(props) {
       });
 
       if (!result?.success) {
-        throw new Error(
-          result?.message || "Unable to save Barcode Scan setting",
-        );
+        throw new Error(result?.message || "Unable to save Barcode Scan setting");
       }
 
       triggerPopup(
@@ -236,6 +238,7 @@ export default function Traceability(props) {
       }, 250);
     }
   };
+
 
   const handleClearDmc = () => {
     if (barcodeTimerRef.current) {
@@ -527,7 +530,8 @@ export default function Traceability(props) {
             sx={{ mr: 2 }}
             onClick={() => setPdfDialogOpen(true)}
             disabled={
-              isPdfExporting || !getTabledataz?.some((t) => t.data?.length > 0)
+              isPdfExporting ||
+              !getTabledataz?.some((t) => t.data?.length > 0)
             }
           >
             {isPdfExporting ? "Exporting PDF..." : "Export PDF"}

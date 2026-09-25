@@ -18,6 +18,10 @@ const Popup = ({ message, type = "info", duration, onClose }) => {
       <Snackbar
         open={open}
         autoHideDuration={duration}
+        // onClose={() => {
+        //     setOpen(false);
+        //     onClose && onClose();
+        // }}
         anchorOrigin={{ vertical: "top", horizontal: "center" }}
         sx={{
           position: "fixed",
@@ -31,11 +35,11 @@ const Popup = ({ message, type = "info", duration, onClose }) => {
           severity={type}
           onClose={onClose}
           sx={{
-            width: 450,
-            height: 60,
+            width: 400, // Fixed width
+            height: 50,
             display: "flex",
             justifyContent: "center",
-            textAlign: "center",
+            textAlign: "center", // Ensure text is centered
           }}
         >
           {message}

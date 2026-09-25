@@ -1,4 +1,10 @@
-import { React, useEffect, useState, useMemo, useCallback } from "react";
+import {
+  React,
+  useEffect,
+  useState,
+  useMemo,
+  useCallback,
+} from "react";
 import {
   Grid,
   Typography,
@@ -31,7 +37,7 @@ function Tablenames({ triggerPopup }) {
   const [getExeUser, setExeUser] = useState("");
   const [draggedMachineName, setDraggedMachineName] = useState(null);
   const [savingTraceabilityOrder, setSavingTraceabilityOrder] = useState(false);
-
+ 
   const debouncedCheck = useCallback(
     debounce(async (value) => {
       if (value.trim() !== "") {
@@ -49,7 +55,10 @@ function Tablenames({ triggerPopup }) {
 
   const handleToggleVisibility = async (rowData) => {
     if (rowData?.exportname === "") {
-      return triggerPopup("Kindly assign a name to this machine.", "warning");
+      return triggerPopup(
+        "Kindly assign a name to this machine.",
+        "warning",
+      );
     }
 
     const newStatus = rowData.status === 1 ? 0 : 1;
@@ -81,6 +90,7 @@ function Tablenames({ triggerPopup }) {
     }
   };
 
+
   const columns = useMemo(
     () => [
       { id: "1", header: "Machine Name", accessorKey: "TABLE_NAME" },
@@ -104,6 +114,7 @@ function Tablenames({ triggerPopup }) {
     ],
     [],
   );
+
 
   const traceabilityTables = useMemo(() => {
     return [...getTableData]
@@ -174,9 +185,7 @@ function Tablenames({ triggerPopup }) {
       });
 
       if (!response?.success) {
-        throw new Error(
-          response?.message || "Unable to save traceability order",
-        );
+        throw new Error(response?.message || "Unable to save traceability order");
       }
 
       triggerPopup("Traceability order saved", "success");
@@ -207,6 +216,7 @@ function Tablenames({ triggerPopup }) {
     setType(row?.original?.exportname !== "" ? "Update" : "Insert");
     setOpenAddModal(true);
   };
+
 
   const hanleEditData = async () => {
     if (getExeUser === "Exists") {
@@ -263,17 +273,13 @@ function Tablenames({ triggerPopup }) {
           </Typography>
           <Typography variant="body2" color="text.secondary" mb={2}>
             Drag and drop the active DMC machines to change the order shown on
-            the Traceability page. The order is saved automatically in the
-            database.
+            the Traceability page. The order is saved automatically in the database.
           </Typography>
 
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: {
-                xs: "1fr",
-                md: "repeat(2, minmax(0, 1fr))",
-              },
+              gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" },
               gap: 1,
               maxWidth: 900,
             }}
@@ -294,8 +300,7 @@ function Tablenames({ triggerPopup }) {
                 onDrop={(event) => {
                   event.preventDefault();
                   const source =
-                    draggedMachineName ||
-                    event.dataTransfer.getData("text/plain");
+                    draggedMachineName || event.dataTransfer.getData("text/plain");
                   handleTraceabilityDrop(item.TABLE_NAME, source);
                 }}
                 onDragEnd={() => setDraggedMachineName(null)}
@@ -384,6 +389,7 @@ function Tablenames({ triggerPopup }) {
             positionActionsColumn="last"
           />
         </Box>
+
       </Card>
 
       <Dialog open={openAddModal} onClose={handleCloseAdd}>

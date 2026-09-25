@@ -13,11 +13,7 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { MaterialReactTable } from "material-react-table";
-import {
-  formatDateDMY,
-  formatTime12,
-  formatDateInputValue,
-} from "../utils/dateTime";
+import { formatDateDMY, formatTime12, formatDateInputValue } from "../utils/dateTime";
 
 let first = false;
 let timeslap = null;
@@ -77,14 +73,18 @@ export default function Home(props) {
               new_columns.push({
                 header: element?.COLUMN_NAME,
                 accessorFn: (row) =>
-                  row.Date_Time ? formatDateDMY(row.Date_Time) : "",
+                  row.Date_Time
+                    ? formatDateDMY(row.Date_Time)
+                    : "",
               });
 
               new_columns.push({
                 accessorKey: "Time",
                 header: "Time",
                 accessorFn: (row) =>
-                  row.Date_Time ? formatTime12(row.Date_Time) : "",
+                  row.Date_Time
+                    ? formatTime12(row.Date_Time)
+                    : "",
               });
             } else {
               new_columns.push(
@@ -164,13 +164,17 @@ export default function Home(props) {
                 new_columns.push({
                   header: "Date",
                   accessorFn: (row) =>
-                    row.Date_Time ? formatDateDMY(row.Date_Time) : "",
+                    row.Date_Time
+                      ? formatDateDMY(row.Date_Time)
+                      : "",
                 });
 
                 new_columns.push({
                   header: "Time",
                   accessorFn: (row) =>
-                    row.Date_Time ? formatTime12(row.Date_Time) : "",
+                    row.Date_Time
+                      ? formatTime12(row.Date_Time)
+                      : "",
                 });
               } else {
                 // Float formatting
@@ -242,7 +246,9 @@ export default function Home(props) {
             id: t.oldHeader,
             order_no: t.order_no,
             accessorFn: (row) =>
-              row.Date_Time ? formatDateDMY(row.Date_Time) : "",
+              row.Date_Time
+                ? formatDateDMY(row.Date_Time)
+                : "",
           };
         }
 
@@ -253,7 +259,9 @@ export default function Home(props) {
             id: t.oldHeader,
             order_no: t.order_no,
             accessorFn: (row) =>
-              row.Date_Time ? formatTime12(row.Date_Time) : "",
+              row.Date_Time
+                ? formatTime12(row.Date_Time)
+                : "",
           };
         } else {
           if (structureCol?.DATA_TYPE === "float") {
@@ -742,7 +750,11 @@ export default function Home(props) {
             </Button>
           )}
           {filePath?.error && filePath?.error}
-          <Button type="submit" variant="contained" disabled={loading}>
+          <Button
+            type="submit"
+            variant="contained"
+            disabled={loading}
+          >
             Submit
           </Button>
           <Button
