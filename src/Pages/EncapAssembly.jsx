@@ -11,6 +11,13 @@ import {
   Select,
   Autocomplete,
   CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Radio,
+  RadioGroup,
+  FormControlLabel,
 } from "@mui/material";
 import { MaterialReactTable } from "material-react-table";
 import { formatDateDMY, formatTime12, formatDateInputValue } from "../utils/dateTime";
@@ -434,6 +441,8 @@ export default function EncapAssembly(props) {
     }
   }, [filePath, triggerPopup]);
   const [isLoading, setIsLoading] = useState(false);
+  const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
+  const [pdfOrientation, setPdfOrientation] = useState("landscape");
 
   const exportexcel = useCallback(
     async (e, getSelTemplate) => {
@@ -516,25 +525,24 @@ export default function EncapAssembly(props) {
     ],
   );
 
-  const exportPdf = async () => {
-    if (!fromDate) {
-      return triggerPopup("Please select From Date", "warning");
-    }
-
-    if (!toDate) {
-      return triggerPopup("Please select To Date", "warning");
-    }
-
-    if (
-      !shift_time?.[shift]?.from_time ||
-      !shift_time?.[shift]?.to_time
-    ) {
+  const openPdfDialog = () => {
+    if (!fromDate) return triggerPopup("Please select From Date", "warning");
+    if (!toDate) return triggerPopup("Please select To Date", "warning");
+    if (!shift_time?.[shift]?.from_time || !shift_time?.[shift]?.to_time) {
       return triggerPopup("Please select Shift Time", "warning");
     }
+    if (!machine) return triggerPopup("Please select Machine", "warning");
 
-    if (!machine) {
-      return triggerPopup("Please select Machine", "warning");
+    setPdfDialogOpen(true);
+  };
+
+  const exportPdf = async (orientation = pdfOrientation) => {
+    if (!fromDate) return triggerPopup("Please select From Date", "warning");
+    if (!toDate) return triggerPopup("Please select To Date", "warning");
+    if (!shift_time?.[shift]?.from_time || !shift_time?.[shift]?.to_time) {
+      return triggerPopup("Please select Shift Time", "warning");
     }
+    if (!machine) return triggerPopup("Please select Machine", "warning");
 
     setIsLoading(true);
 
@@ -543,31 +551,27 @@ export default function EncapAssembly(props) {
         fromDate,
         toDate,
         ...shift_time[shift],
+        shift,
         machine,
         getSelTemplate,
+        orientation,
+        reportType: "ENCAP ASSEMBLY",
       });
 
-      if (
-        typeof result === "string" &&
-        result.toLowerCase().includes("no data")
-      ) {
+      if (typeof result === "string" && result.toLowerCase().includes("no data")) {
         return triggerPopup("No data to export", "warning");
       }
 
-      if (
-        result &&
-        typeof result === "string" &&
-        result.toLowerCase().endsWith(".pdf")
-      ) {
-        triggerPopup("PDF Exported Successfully", "success");
+      if (result && typeof result === "string" && result.toLowerCase().endsWith(".pdf")) {
+        setPdfDialogOpen(false);
+        triggerPopup(
+          `PDF (${orientation === "portrait" ? "Portrait" : "Landscape"}) Exported Successfully`,
+          "success",
+        );
 
         const openResult = await window.versions.openfolder(result);
-
         if (openResult?.success === false) {
-          triggerPopup(
-            "PDF exported, but the file could not be opened",
-            "warning",
-          );
+          triggerPopup("PDF exported, but the file could not be opened", "warning");
         }
         return;
       }
@@ -826,7 +830,8 @@ export default function EncapAssembly(props) {
             type="button"
             variant="contained"
             sx={{ color: "#ffffff", backgroundColor: "#857be6" }}
-            onClick={(e) => exportPdf(e, getSelTemplate)}
+            onClick={openPdfDialog}
+            disabled={isLoading}
           >
             {isLoading ? (
               <CircularProgress
@@ -889,6 +894,56 @@ export default function EncapAssembly(props) {
           positionActionsColumn="last"
         />
       </Box>
+
+      <Dialog
+        open={pdfDialogOpen}
+        onClose={() => {
+          if (!isLoading) setPdfDialogOpen(false);
+        }}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Export Encap Assembly PDF</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ mb: 1.5, color: "text.secondary" }}>
+            Select PDF orientation
+          </Typography>
+
+          <RadioGroup
+            value={pdfOrientation}
+            onChange={(event) => setPdfOrientation(event.target.value)}
+          >
+            <FormControlLabel
+              value="landscape"
+              control={<Radio />}
+              label="Landscape - compact continuous table view"
+            />
+            <FormControlLabel
+              value="portrait"
+              control={<Radio />}
+              label="Portrait - parameter / value view"
+            />
+          </RadioGroup>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            type="button"
+            onClick={() => setPdfDialogOpen(false)}
+            disabled={isLoading}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant="contained"
+            onClick={() => exportPdf(pdfOrientation)}
+            disabled={isLoading}
+          >
+            {isLoading ? "Exporting..." : "Export"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Card>
   );
 }

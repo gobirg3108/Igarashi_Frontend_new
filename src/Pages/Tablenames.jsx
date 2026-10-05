@@ -358,8 +358,13 @@ function Tablenames({ triggerPopup }) {
         </Box>
 
         <Box mt={3}>
-          <Typography variant="h6" gutterBottom mb={2}>
-            All Tables
+          <Typography variant="h6" gutterBottom>
+            All Database Tables
+          </Typography>
+          <Typography variant="body2" color="text.secondary" mb={2}>
+            All dbo tables from IGARASHI_DB are listed here. Turn Visibility ON only
+            for the tables that should be available in the application UI. Newly
+            discovered tables are OFF by default.
           </Typography>
           <MaterialReactTable
             enablePagination
